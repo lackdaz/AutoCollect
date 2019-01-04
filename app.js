@@ -44,6 +44,8 @@ const passportConfig = require('./config/passport');
  * Create Express server.
  */
 const app = express();
+const server = require('http').Server(app);
+const io = require('socket.io')(server);
 
 /**
  * Connect to MongoDB.
@@ -65,7 +67,7 @@ app.set('host', process.env.OPENSHIFT_NODEJS_IP || '0.0.0.0');
 app.set('port', process.env.PORT || process.env.OPENSHIFT_NODEJS_PORT || 8080);
 app.set('views', path.join(__dirname, 'views'));
 app.set('view engine', 'pug');
-app.use(expressStatusMonitor());
+app.use(expressStatusMonitor({ websocket: io, port: app.get('port') }));
 app.use(compression());
 app.use(sass({
   src: path.join(__dirname, 'public'),
@@ -217,9 +219,24 @@ if (process.env.NODE_ENV === 'development') {
 /**
  * Start Express server.
  */
-app.listen(app.get('port'), () => {
+server.listen(app.get('port'), () => {
   console.log('%s App is running at http://localhost:%d in %s mode', chalk.green('✓'), app.get('port'), app.get('env'));
   console.log('  Press CTRL-C to stop\n');
 });
+
+/**
+ * socket.io Server
+**/
+
+io.on('connection', (socket) => {
+  socket.emit('greet', { hello: 'Hey there browser!' });
+  socket.on('respond', (data) => {
+    console.log(data);
+  });
+  socket.on('disconnect', () => {
+    console.log('Socket disconnected');
+  });
+});
+
 
 module.exports = app;
